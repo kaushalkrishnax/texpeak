@@ -1,0 +1,36 @@
+{
+  "name": "texpeak",
+  "version": "1.0.0",
+  "description": "Texpeak is an AI-powered desktop application that lets users type any text and live stream it virtually in your own voice clone",
+  "keywords": [
+    "Texpeak",
+    "TTS",
+    "AI",
+    "Voice",
+    "Clone",
+    "AI",
+    "TTS"
+  ],
+  "homepage": "https://github.com/kaushalkrishnax/texpeak#readme",
+  "bugs": {
+    "url": "https://github.com/kaushalkrishnax/texpeak/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/kaushalkrishnax/texpeak.git"
+  },
+  "license": "ISC",
+  "author": "Kaushal Krishna",
+  "type": "module",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron . --no-sandbox",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "devDependencies": {
+    "electron": "^35.1.4"
+  },
+  "dependencies": {
+    "elevenlabs": "^1.56.0"
+  }
+}

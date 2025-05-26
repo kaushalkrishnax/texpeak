@@ -1,0 +1,925 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Socket.IO Tester</title>
+  <style>
+    :root {
+      --primary: #4f46e5;
+      --primary-hover: #4338ca;
+      --success: #10b981;
+      --error: #ef4444;
+      --warning: #f59e0b;
+      --text: #1f2937;
+      --text-light: #6b7280;
+      --bg: #f9fafb;
+      --bg-card: #ffffff;
+      --border: #e5e7eb;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --primary: #6366f1;
+        --primary-hover: #818cf8;
+        --success: #10b981;
+        --error: #ef4444;
+        --warning: #f59e0b;
+        --text: #f9fafb;
+        --text-light: #9ca3af;
+        --bg: #111827;
+        --bg-card: #1f2937;
+        --border: #374151;
+      }
+
+      .logs {
+        background-color: #0f172a;
+        color: #e2e8f0;
+      }
+
+      .response-view {
+        background-color: #1e293b;
+        color: #e2e8f0;
+      }
+
+      .saved-event-item:hover {
+        background-color: #1e293b;
+      }
+
+      .action-button:hover {
+        background-color: #1e293b;
+      }
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, "Open Sans", "Helvetica Neue", sans-serif;
+      background-color: var(--bg);
+      color: var(--text);
+      line-height: 1.5;
+      padding: 1rem;
+    }
+
+    h1,
+    h2,
+    h3 {
+      margin-bottom: 1rem;
+    }
+
+    header {
+      margin-bottom: 2rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .connection-status {
+      display: flex;
+      align-items: center;
+      font-weight: 500;
+    }
+
+    .status-indicator {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      margin-right: 8px;
+    }
+
+    .connected {
+      background-color: var(--success);
+    }
+
+    .disconnected {
+      background-color: var(--error);
+    }
+
+    .connecting {
+      background-color: var(--warning);
+      animation: pulse 1.5s infinite;
+    }
+
+    @keyframes pulse {
+      0% {
+        opacity: 0.5;
+      }
+
+      50% {
+        opacity: 1;
+      }
+
+      100% {
+        opacity: 0.5;
+      }
+    }
+
+    .container {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.5rem;
+    }
+
+    .card {
+      background-color: var(--bg-card);
+      border-radius: 8px;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+      padding: 1.5rem;
+      margin-bottom: 1.5rem;
+    }
+
+    label {
+      display: block;
+      margin-bottom: 0.5rem;
+      font-weight: 500;
+    }
+
+    input,
+    textarea,
+    select {
+      width: 100%;
+      padding: 0.75rem;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      margin-bottom: 1rem;
+      font-family: inherit;
+    }
+
+    textarea {
+      height: 120px;
+      font-family: monospace;
+    }
+
+    button {
+      background-color: var(--primary);
+      color: white;
+      border: none;
+      border-radius: 4px;
+      padding: 0.75rem 1rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background-color 0.2s;
+    }
+
+    button:hover {
+      background-color: var(--primary-hover);
+    }
+
+    button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .logs {
+      background-color: #1e293b;
+      color: #f8fafc;
+      border-radius: 4px;
+      height: 300px;
+      overflow-y: auto;
+      padding: 1rem;
+      font-family: monospace;
+      white-space: pre-wrap;
+    }
+
+    .log-entry {
+      margin-bottom: 0.5rem;
+      padding-bottom: 0.5rem;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .log-timestamp {
+      color: #94a3b8;
+      font-size: 0.8rem;
+    }
+
+    .log-event {
+      color: #38bdf8;
+      font-weight: bold;
+    }
+
+    .log-emit {
+      color: #34d399;
+    }
+
+    .log-receive {
+      color: #fb923c;
+    }
+
+    .log-error {
+      color: #f87171;
+    }
+
+    .log-connect {
+      color: #4ade80;
+    }
+
+    .log-disconnect {
+      color: #f87171;
+    }
+
+    .tab-container {
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 1rem;
+      display: flex;
+    }
+
+    .tab {
+      padding: 0.75rem 1rem;
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+    }
+
+    .tab.active {
+      border-bottom: 2px solid var(--primary);
+      font-weight: 500;
+    }
+
+    .tab-content {
+      display: none;
+    }
+
+    .tab-content.active {
+      display: block;
+    }
+
+    .badge {
+      display: inline-block;
+      padding: 0.25rem 0.5rem;
+      border-radius: 9999px;
+      font-size: 0.75rem;
+      font-weight: 500;
+      margin-left: 0.5rem;
+    }
+
+    .badge-connect {
+      background-color: rgba(16, 185, 129, 0.1);
+      color: var(--success);
+    }
+
+    .badge-error {
+      background-color: rgba(239, 68, 68, 0.1);
+      color: var(--error);
+    }
+
+    .saved-events-list {
+      max-height: 200px;
+      overflow-y: auto;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      margin-bottom: 1rem;
+    }
+
+    .saved-event-item {
+      padding: 0.75rem;
+      border-bottom: 1px solid var(--border);
+      cursor: pointer;
+      display: flex;
+      justify-content: space-between;
+    }
+
+    .saved-event-item:last-child {
+      border-bottom: none;
+    }
+
+    .saved-event-item:hover {
+      background-color: var(--bg);
+    }
+
+    .saved-event-item button {
+      padding: 0.25rem 0.5rem;
+      font-size: 0.75rem;
+    }
+
+    .event-listener-item {
+      padding: 0.75rem;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      margin-bottom: 0.75rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .flex {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .mt-4 {
+      margin-top: 1rem;
+    }
+
+    .response-view {
+      background-color: #f8fafc;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 1rem;
+      margin-top: 1rem;
+      font-family: monospace;
+      white-space: pre-wrap;
+      max-height: 200px;
+      overflow-y: auto;
+    }
+
+    .btn-danger {
+      background-color: var(--error);
+    }
+
+    .btn-danger:hover {
+      background-color: #dc2626;
+    }
+
+    .action-button {
+      padding: 0.5rem;
+      margin-left: 0.5rem;
+      border-radius: 4px;
+      background-color: transparent;
+      color: var(--text);
+      border: 1px solid var(--border);
+    }
+
+    .action-button:hover {
+      background-color: var(--bg);
+    }
+
+    #toast {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      padding: 12px 24px;
+      background-color: var(--success);
+      color: white;
+      border-radius: 4px;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      opacity: 0;
+      transition: opacity 0.3s;
+      z-index: 1000;
+    }
+
+    #toast.show {
+      opacity: 1;
+    }
+
+    .visually-hidden {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border-width: 0;
+    }
+  </style>
+</head>
+
+<body>
+  <div id="toast">Event copied to clipboard</div>
+
+  <header>
+    <h1>Socket.IO Tester</h1>
+    <div class="connection-status">
+      <div class="status-indicator disconnected" id="statusIndicator"></div>
+      <span id="connectionStatus">Disconnected</span>
+      <span id="socketId" class="badge badge-connect"></span>
+    </div>
+  </header>
+
+  <div class="container">
+    <div class="left-panel">
+      <div class="card">
+        <h2>Connection Settings</h2>
+        <label for="serverUrl">Server URL</label>
+        <input type="text" id="serverUrl" value="http://localhost:8000" placeholder="e.g., http://localhost:3000">
+
+        <div class="tab-container">
+          <div class="tab active" data-tab="basic">Basic</div>
+          <div class="tab" data-tab="advanced">Advanced</div>
+        </div>
+
+        <div class="tab-content active" id="basicTab">
+          <button id="connectBtn">Connect</button>
+          <button id="disconnectBtn" disabled>Disconnect</button>
+        </div>
+
+        <div class="tab-content" id="advancedTab">
+          <label for="queryParams">Query Parameters (JSON)</label>
+          <textarea id="queryParams" placeholder='{ "token": "abc123" }'>{}</textarea>
+
+          <label for="authObject">Authentication Object (JSON)</label>
+          <textarea id="authObject" placeholder='{ "token": "abc123" }'>{}</textarea>
+
+          <label for="extraHeaders">Extra Headers (JSON)</label>
+          <textarea id="extraHeaders" placeholder='{ "X-Custom-Header": "value" }'>{}</textarea>
+
+          <label for="transportOptions">
+            <input type="checkbox" id="transportOptions"> Force new connection
+          </label>
+
+          <button id="connectAdvancedBtn" class="mt-4">Connect with Options</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Event Emitter</h2>
+        <label for="eventName">Event Name</label>
+        <input type="text" id="eventName" placeholder="e.g., chat message">
+
+        <label for="eventData">Event Data (JSON)</label>
+        <textarea id="eventData" placeholder='{ "message": "Hello world!" }'>{}</textarea>
+
+        <div class="flex">
+          <button id="emitBtn" disabled>Emit Event</button>
+          <button id="saveEventBtn" class="action-button" title="Save Event">💾</button>
+        </div>
+
+        <div id="lastResponse" class="response-view" style="display: none;"></div>
+      </div>
+
+      <div class="card">
+        <h2>Saved Events</h2>
+        <div id="savedEventsList" class="saved-events-list">
+          <div class="saved-event-item">No saved events</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="right-panel">
+      <div class="card">
+        <h2>Event Listeners</h2>
+        <div class="flex">
+          <input type="text" id="listenerEventName" placeholder="e.g., chat message">
+          <button id="addListenerBtn">Add Listener</button>
+        </div>
+
+        <div id="eventListeners" class="mt-4">
+          <!-- Event listeners will be added here -->
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Event Logs</h2>
+        <div class="logs" id="logs"></div>
+        <div class="flex mt-4">
+          <button id="clearLogsBtn">Clear Logs</button>
+          <button id="exportLogsBtn" class="action-button">Export Logs</button>
+          <button id="copyLogsBtn" class="action-button">Copy Logs</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+  <script>
+    // Global variables
+    let socket = null;
+    const savedEvents = JSON.parse(localStorage.getItem('socketTesterSavedEvents') || '[]');
+    const activeListeners = new Set(['connect', 'disconnect', 'connect_error']);
+
+    // DOM Elements
+    const serverUrlInput = document.getElementById('serverUrl');
+    const statusIndicator = document.getElementById('statusIndicator');
+    const connectionStatus = document.getElementById('connectionStatus');
+    const socketIdBadge = document.getElementById('socketId');
+    const connectBtn = document.getElementById('connectBtn');
+    const disconnectBtn = document.getElementById('disconnectBtn');
+    const connectAdvancedBtn = document.getElementById('connectAdvancedBtn');
+    const emitBtn = document.getElementById('emitBtn');
+    const eventNameInput = document.getElementById('eventName');
+    const eventDataInput = document.getElementById('eventData');
+    const logsContainer = document.getElementById('logs');
+    const queryParamsInput = document.getElementById('queryParams');
+    const authObjectInput = document.getElementById('authObject');
+    const extraHeadersInput = document.getElementById('extraHeaders');
+    const forceNewConnectionCheckbox = document.getElementById('transportOptions');
+    const listenerEventNameInput = document.getElementById('listenerEventName');
+    const addListenerBtn = document.getElementById('addListenerBtn');
+    const eventListenersContainer = document.getElementById('eventListeners');
+    const clearLogsBtn = document.getElementById('clearLogsBtn');
+    const exportLogsBtn = document.getElementById('exportLogsBtn');
+    const copyLogsBtn = document.getElementById('copyLogsBtn');
+    const saveEventBtn = document.getElementById('saveEventBtn');
+    const savedEventsList = document.getElementById('savedEventsList');
+    const lastResponseDiv = document.getElementById('lastResponse');
+    const toast = document.getElementById('toast');
+
+    // Tab functionality
+    const tabs = document.querySelectorAll('.tab');
+    tabs.forEach(tab => {
+      tab.addEventListener('click', () => {
+        const tabName = tab.dataset.tab;
+
+        // Update active tab
+        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+        tab.classList.add('active');
+
+        // Show active tab content
+        document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+        document.getElementById(`${tabName}Tab`).classList.add('active');
+      });
+    });
+
+    // Toast functionality
+    function showToast(message) {
+      toast.textContent = message;
+      toast.classList.add('show');
+      setTimeout(() => {
+        toast.classList.remove('show');
+      }, 3000);
+    }
+
+    // Helper functions
+    function formatTimestamp() {
+      return new Date().toLocaleTimeString();
+    }
+
+    function addLogEntry(type, event, data) {
+      const logEntry = document.createElement('div');
+      logEntry.className = 'log-entry';
+
+      const timestamp = document.createElement('span');
+      timestamp.className = 'log-timestamp';
+      timestamp.textContent = `[${formatTimestamp()}] `;
+
+      let eventSpan = '';
+      if (event) {
+        eventSpan = document.createElement('span');
+        eventSpan.className = 'log-event';
+        eventSpan.textContent = event;
+      }
+
+      const logContent = document.createElement('div');
+      logContent.innerHTML = timestamp.outerHTML;
+
+      if (eventSpan) {
+        logContent.innerHTML += `<span class="log-${type}">${type}</span>: ${eventSpan.outerHTML} `;
+      } else {
+        logContent.innerHTML += `<span class="log-${type}">${type}</span> `;
+      }
+
+      if (data) {
+        try {
+          const jsonString = typeof data === 'object' ? JSON.stringify(data, null, 2) : data;
+          logContent.innerHTML += `<div>${jsonString}</div>`;
+        } catch (e) {
+          logContent.innerHTML += `<div>${data}</div>`;
+        }
+      }
+
+      logEntry.appendChild(logContent);
+      logsContainer.appendChild(logEntry);
+      logsContainer.scrollTop = logsContainer.scrollHeight;
+    }
+
+    function updateConnectionStatus(status, id = null) {
+      connectionStatus.textContent = status;
+
+      switch (status) {
+        case 'Connected':
+          statusIndicator.className = 'status-indicator connected';
+          connectBtn.disabled = true;
+          connectAdvancedBtn.disabled = true;
+          disconnectBtn.disabled = false;
+          emitBtn.disabled = false;
+          if (id) {
+            socketIdBadge.textContent = `ID: ${id}`;
+            socketIdBadge.style.display = 'inline-block';
+          }
+          break;
+        case 'Disconnected':
+          statusIndicator.className = 'status-indicator disconnected';
+          connectBtn.disabled = false;
+          connectAdvancedBtn.disabled = false;
+          disconnectBtn.disabled = true;
+          emitBtn.disabled = true;
+          socketIdBadge.style.display = 'none';
+          break;
+        case 'Connecting...':
+          statusIndicator.className = 'status-indicator connecting';
+          connectBtn.disabled = true;
+          connectAdvancedBtn.disabled = true;
+          break;
+      }
+    }
+
+    function parseJsonInput(inputElement, defaultValue = {}) {
+      try {
+        const value = inputElement.value.trim();
+        return value ? JSON.parse(value) : defaultValue;
+      } catch (e) {
+        addLogEntry('error', null, `Invalid JSON: ${e.message}`);
+        return defaultValue;
+      }
+    }
+
+    function setupEventListeners() {
+      // Pre-defined listeners
+      activeListeners.forEach(eventName => {
+        if (!document.querySelector(`[data-event="${eventName}"]`)) {
+          addEventListenerElement(eventName);
+        }
+      });
+    }
+
+    function addEventListenerElement(eventName) {
+      if (activeListeners.has(eventName)) {
+        return;
+      }
+
+      const listenerItem = document.createElement('div');
+      listenerItem.className = 'event-listener-item';
+      listenerItem.dataset.event = eventName;
+
+      listenerItem.innerHTML = `
+        <div>${eventName}</div>
+        <div>
+          <button class="btn-danger remove-listener">Remove</button>
+        </div>
+      `;
+
+      eventListenersContainer.appendChild(listenerItem);
+
+      // Add to active listeners set
+      activeListeners.add(eventName);
+
+      // Add event listener if socket exists
+      if (socket) {
+        setupSocketListener(eventName);
+      }
+
+      // Add remove event handler
+      listenerItem.querySelector('.remove-listener').addEventListener('click', () => {
+        if (socket) {
+          socket.off(eventName);
+        }
+        listenerItem.remove();
+        activeListeners.delete(eventName);
+      });
+    }
+
+    function setupSocketListener(eventName) {
+      if (!socket) return;
+
+      // Skip default listeners that are set up elsewhere
+      if (['connect', 'disconnect', 'connect_error'].includes(eventName)) {
+        return;
+      }
+
+      socket.on(eventName, (data) => {
+        addLogEntry('receive', eventName, data);
+
+        // Update last response
+        lastResponseDiv.textContent = JSON.stringify(data, null, 2);
+        lastResponseDiv.style.display = 'block';
+      });
+    }
+
+    function connectToServer(options = {}) {
+      if (socket) {
+        socket.disconnect();
+        socket = null;
+      }
+
+      updateConnectionStatus('Connecting...');
+      addLogEntry('connect', null, `Connecting to ${serverUrlInput.value}`);
+
+      try {
+        socket = io(serverUrlInput.value, options);
+
+        // Setup default listeners
+        socket.on('connect', () => {
+          updateConnectionStatus('Connected', socket.id);
+          addLogEntry('connect', null, `Connected with ID: ${socket.id}`);
+        });
+
+        socket.on('disconnect', (reason) => {
+          updateConnectionStatus('Disconnected');
+          addLogEntry('disconnect', null, `Disconnected: ${reason}`);
+        });
+
+        socket.on('connect_error', (error) => {
+          updateConnectionStatus('Disconnected');
+          addLogEntry('error', null, `Connection error: ${error.message}`);
+        });
+
+        // Setup custom listeners
+        activeListeners.forEach(eventName => {
+          setupSocketListener(eventName);
+        });
+
+      } catch (error) {
+        updateConnectionStatus('Disconnected');
+        addLogEntry('error', null, `Failed to connect: ${error.message}`);
+      }
+    }
+
+    function updateSavedEventsList() {
+      savedEventsList.innerHTML = '';
+
+      if (savedEvents.length === 0) {
+        savedEventsList.innerHTML = '<div class="saved-event-item">No saved events</div>';
+        return;
+      }
+
+      savedEvents.forEach((event, index) => {
+        const eventItem = document.createElement('div');
+        eventItem.className = 'saved-event-item';
+
+        eventItem.innerHTML = `
+          <div>${event.name}</div>
+          <div>
+            <button class="action-button use-event" title="Use Event">Use</button>
+            <button class="action-button copy-event" title="Copy Event">Copy</button>
+            <button class="btn-danger delete-event" title="Delete Event">×</button>
+          </div>
+        `;
+
+        savedEventsList.appendChild(eventItem);
+
+        // Add event handlers
+        eventItem.querySelector('.use-event').addEventListener('click', () => {
+          eventNameInput.value = event.name;
+          eventDataInput.value = JSON.stringify(event.data, null, 2);
+        });
+
+        eventItem.querySelector('.copy-event').addEventListener('click', () => {
+          const eventObject = {
+            name: event.name,
+            data: event.data
+          };
+          navigator.clipboard.writeText(JSON.stringify(eventObject, null, 2));
+          showToast('Event copied to clipboard');
+        });
+
+        eventItem.querySelector('.delete-event').addEventListener('click', () => {
+          savedEvents.splice(index, 1);
+          localStorage.setItem('socketTesterSavedEvents', JSON.stringify(savedEvents));
+          updateSavedEventsList();
+        });
+      });
+    }
+
+    // Event Handlers
+    connectBtn.addEventListener('click', () => {
+      connectToServer();
+    });
+
+    disconnectBtn.addEventListener('click', () => {
+      if (socket) {
+        socket.disconnect();
+      }
+    });
+
+    connectAdvancedBtn.addEventListener('click', () => {
+      const options = {};
+
+      // Parse query params
+      const queryParams = parseJsonInput(queryParamsInput);
+      if (Object.keys(queryParams).length > 0) {
+        options.query = queryParams;
+      }
+
+      // Parse auth object
+      const authObject = parseJsonInput(authObjectInput);
+      if (Object.keys(authObject).length > 0) {
+        options.auth = authObject;
+      }
+
+      // Parse extra headers
+      const extraHeaders = parseJsonInput(extraHeadersInput);
+      if (Object.keys(extraHeaders).length > 0) {
+        options.extraHeaders = extraHeaders;
+      }
+
+      // Force new connection
+      if (forceNewConnectionCheckbox.checked) {
+        options.forceNew = true;
+      }
+
+      connectToServer(options);
+    });
+
+    emitBtn.addEventListener('click', () => {
+      if (!socket || !socket.connected) {
+        addLogEntry('error', null, 'Socket not connected');
+        return;
+      }
+
+      const eventName = eventNameInput.value.trim();
+      if (!eventName) {
+        addLogEntry('error', null, 'Event name is required');
+        return;
+      }
+
+      let eventData;
+      try {
+        eventData = parseJsonInput(eventDataInput);
+      } catch (e) {
+        addLogEntry('error', null, `Invalid JSON data: ${e.message}`);
+        return;
+      }
+
+      socket.emit(eventName, eventData, (response) => {
+        if (response) {
+          addLogEntry('receive', `${eventName} (ack)`, response);
+
+          // Update last response
+          lastResponseDiv.textContent = JSON.stringify(response, null, 2);
+          lastResponseDiv.style.display = 'block';
+        }
+      });
+
+      addLogEntry('emit', eventName, eventData);
+    });
+
+    saveEventBtn.addEventListener('click', () => {
+      const eventName = eventNameInput.value.trim();
+      if (!eventName) {
+        addLogEntry('error', null, 'Event name is required');
+        return;
+      }
+
+      let eventData;
+      try {
+        eventData = parseJsonInput(eventDataInput);
+      } catch (e) {
+        addLogEntry('error', null, `Invalid JSON data: ${e.message}`);
+        return;
+      }
+
+      // Add to saved events
+      savedEvents.push({
+        name: eventName,
+        data: eventData
+      });
+
+      // Save to localStorage
+      localStorage.setItem('socketTesterSavedEvents', JSON.stringify(savedEvents));
+
+      // Update UI
+      updateSavedEventsList();
+
+      showToast('Event saved');
+    });
+
+    addListenerBtn.addEventListener('click', () => {
+      const eventName = listenerEventNameInput.value.trim();
+      if (!eventName) {
+        addLogEntry('error', null, 'Event name is required');
+        return;
+      }
+
+      addEventListenerElement(eventName);
+      listenerEventNameInput.value = '';
+    });
+
+    clearLogsBtn.addEventListener('click', () => {
+      logsContainer.innerHTML = '';
+    });
+
+    exportLogsBtn.addEventListener('click', () => {
+      const logs = logsContainer.innerText;
+      const blob = new Blob([logs], { type: 'text/plain' });
+      const url = URL.createObjectURL(blob);
+
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `socketio-logs-${new Date().toISOString().slice(0, 10)}.txt`;
+      a.click();
+
+      URL.revokeObjectURL(url);
+    });
+
+    copyLogsBtn.addEventListener('click', () => {
+      const logs = logsContainer.innerText;
+      navigator.clipboard.writeText(logs);
+      showToast('Logs copied to clipboard');
+    });
+
+    updateSavedEventsList();
+
+    setupEventListeners();
+
+    if (serverUrlInput.value.trim()) {
+      connectBtn.click();
+    }
+
+    addLogEntry('info', null, 'Socket.IO Tester started');
+    addLogEntry('info', null, 'Enter server URL and click Connect to begin testing');
+  </script>
+
+  <noscript>
+    <div style="color: red; text-align: center; padding: 20px;">
+      This application requires JavaScript to be enabled in your browser.
+    </div>
+  </noscript>
+</body>
+
+</html>
